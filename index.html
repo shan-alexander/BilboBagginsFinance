@@ -1,0 +1,975 @@
+<script src="js/angular.min.js"></script>
+<script>
+(function() {
+var app = angular.module('zeApp', []); 
+
+	
+
+app.controller('ZeController', ['$scope', '$http', function($scope, $http){
+
+		//injecting the Math object into scope to make it available in angular bindings
+		$scope.Math = window.Math;
+
+		//initialize variables used for timeline buttons
+		$scope.initVars = function() {
+			$scope.tlVis = true;
+			$scope.tlVis2 = true;
+			$scope.tlVis3 = true;
+		}
+		$scope.initVars();
+
+		// create the bilbo object and fill it with initial values
+		$scope.bilbo = {};
+		$scope.bilbo.retireInYrs = 30;
+		$scope.bilbo.retireIncome = 20000;
+		$scope.bilbo.retireIncomeYrs = 25;
+		$scope.bilbo.buyCabinInYrs = 10;
+		$scope.bilbo.cabin = 380000;
+		$scope.bilbo.inheretance = 900000;
+		$scope.bilbo.savePerMonth1 = 2500;
+		$scope.bilbo.firstEAR = 10;
+		$scope.bilbo.secondEAR = 7;
+		//console log for doublechecking the object;
+		//console.log($scope.bilbo);
+
+		//call other variables used
+		var effectivePeriodicRate1;
+		var effectivePeriodicRate2;
+		var retireInYrs;
+		var retireIncome;
+		var retireIncomeYrs;
+		var inheretance;
+		var buyCabinInYrs;
+		var savePerMonth1;
+		var cabin;
+		var amountAfterCabin;
+		var futureValueAnn;
+		var presentValueAnn;
+		var firstEAR;
+		var secondEAR;
+		var yearsBetween;
+		var monthsBetween;
+		var amountNeededAtYear30;
+
+
+		//function converts the Effective Annual Rate to an Effective Periodic [monthly] Rate
+		$scope.convertEAR = function (ear) {
+			var temp1 = 1 + (ear/100);
+			var temp2 = 1/12;
+			var temp3 = Math.pow(temp1, temp2) - 1;
+
+			return temp3;
+		};
+		$scope.effectivePeriodicRate1 = $scope.convertEAR($scope.bilbo.firstEAR);
+		console.log("effectivePeriodicRate1 = " + $scope.effectivePeriodicRate1);
+
+
+
+		//now its time to find the Future Value of an Annuity
+
+		$scope.fvAnn = function (periodicRate, savings, time) {
+			var cashflow = savings;
+			var i = periodicRate;
+			var n = time * 12; // periodic rate is monthly so n should be monthly
+
+			// FV of Ann = C * [ ( ((1+i)^n) -1 ) / i]
+			var calc1 = Math.pow( (1+i), 120 );
+			var calc2 = calc1 - 1;
+			var calc3 = calc2/i;
+			var calc4 = cashflow * calc3;
+
+			return calc4;
+		};
+
+		//call the function
+		$scope.futureValueAnn = $scope.fvAnn($scope.effectivePeriodicRate1, $scope.bilbo.savePerMonth1, $scope.bilbo.buyCabinInYrs);
+		console.log("Future Value of savings at time_10 = $" + $scope.futureValueAnn);
+
+		
+		//THEN WE BUY THE CABIN
+		$scope.amountAfterCabin = $scope.futureValueAnn - $scope.bilbo.cabin;
+		console.log("amount after cabin is $" + $scope.amountAfterCabin);
+
+
+
+
+		//now its time to calculate the end portion of the timeline
+
+		//dont forget to convert the second EAR to a periodic rate
+		$scope.effectivePeriodicRate2 = $scope.convertEAR($scope.bilbo.secondEAR);
+		console.log("effectivePeriodicRate2 = " + $scope.effectivePeriodicRate2);
+	
+		//now calculate Present Value of Annuity
+		// PV = C * [ ( 1-(1+i)^(-n) ) / i  ] 
+
+		$scope.pvAnn = function (ear , retireIncome, retireIncomeYrs) {
+			var i = ear;
+			var n = -(retireIncomeYrs * 12); //get monthly period and negate
+			var cashflow = retireIncome;
+			
+			var temp1 = (1 + i);
+			//console.log(temp1);
+			var temp2 = Math.pow(temp1, n);
+			//console.log(temp2);
+			var temp3 = 1 - temp2;
+			//console.log(temp3);
+			var temp4 = temp3 / i;
+			//console.log(temp4);
+			var answer = cashflow * temp4;
+
+
+			return answer;
+		};
+		
+		$scope.presentValueAnn = $scope.pvAnn($scope.effectivePeriodicRate2, $scope.bilbo.retireIncome, $scope.bilbo.retireIncomeYrs);
+		console.log("Amount needed at time_30 to have retirement income = " + $scope.presentValueAnn);
+
+		//and now you need to find the PV at year30 for the inheretance
+		//thankfully, this is a simple PV formula
+		// PV = FV / (1 + i)^n
+
+
+		$scope.pvFormula = function (fv, r, t) {
+			var i = r / 100; //convert to decimal
+			var n = t;
+			var fv = fv;
+
+			var temp1 = 1 + i;
+			var temp2 = Math.pow(temp1, n);
+			var answer = fv / temp2;
+
+			return answer;
+
+		};
+
+		$scope.pvInheretance = $scope.pvFormula($scope.bilbo.inheretance, $scope.bilbo.secondEAR, $scope.bilbo.retireIncomeYrs );
+		console.log("Amount needed at time_30 to leave inheretance = " + $scope.pvInheretance);
+
+		$scope.amountAtTime30 = $scope.pvInheretance + $scope.presentValueAnn;
+		console.log("Therefore, Bilbo needs to have $" + $scope.amountAtTime30 + " at time_30");
+		
+		
+		//now we finally answer the question in the problem!
+		//How much must Bilbo save per month in Years 11 - 30 ?
+		//to determine this, we see how much he is short at year30 based on how much he has at year10
+
+		
+		$scope.yearsBetween = $scope.bilbo.retireInYrs - $scope.bilbo.buyCabinInYrs;
+		
+
+		$scope.fvFormula = function (pv, r, t) {
+			var i = r / 100;
+			var n = t;
+			var pv = pv
+
+			var temp1 = 1 + i;
+			var temp2 = Math.pow(temp1, n);
+			var answer = pv * temp2;
+
+			return answer;
+		};
+
+		$scope.fvOf11at30 = $scope.fvFormula($scope.amountAfterCabin, $scope.bilbo.firstEAR, $scope.yearsBetween)
+		console.log("And based on savings from yrs1-10, he has $" + $scope.fvOf11at30 + "at time_30");
+
+		//so we subtract the values at year30
+		$scope.amountNeededAtYear30 = $scope.amountAtTime30 - $scope.fvOf11at30;
+		console.log("Thus he needs $" + $scope.amountNeededAtYear30 + "at time_30");
+
+		// C = FV / [(((1 + i)^n )-1 ) / i ]
+		$scope.finalFunction = function (fv, r, t) {
+			var i = r;
+			var n = t * 12; // need monthly not yearly
+			var fv = fv;
+
+			var temp1 = 1 + i;
+			var temp2 = Math.pow(temp1, n);
+			var temp3 = temp2 - 1;
+			var temp4 = temp3 / i;
+			var answer = fv / temp4;
+
+			return answer;
+		};
+
+		
+		$scope.finalAnswer = $scope.finalFunction ($scope.amountNeededAtYear30, $scope.effectivePeriodicRate1, $scope.yearsBetween);
+		
+ 	 	$scope.finalAnswer = Math.round($scope.finalAnswer);
+ 	 	console.log("THEREFORE, Bilbo must save $" + $scope.finalAnswer + " per month in the years between, in order to achieve his goals.");
+
+
+ 	 	//function below executes the whole problem 
+ 	 	$scope.solver = function (){
+			
+			$scope.effectivePeriodicRate1 = $scope.convertEAR($scope.bilbo.firstEAR);
+			
+			$scope.effectivePeriodicRate2 = $scope.convertEAR($scope.bilbo.secondEAR);
+			
+			$scope.futureValueAnn = $scope.fvAnn($scope.effectivePeriodicRate1, $scope.bilbo.savePerMonth1, $scope.bilbo.buyCabinInYrs);
+			
+			$scope.amountAfterCabin = $scope.futureValueAnn - $scope.bilbo.cabin;
+			
+			$scope.presentValueAnn = $scope.pvAnn($scope.effectivePeriodicRate2, $scope.bilbo.retireIncome, $scope.bilbo.retireIncomeYrs);
+			
+			$scope.pvInheretance = $scope.pvFormula($scope.bilbo.inheretance, $scope.bilbo.secondEAR, $scope.bilbo.retireIncomeYrs);
+
+			$scope.amountAtTime30 = $scope.pvInheretance + $scope.presentValueAnn;
+
+			$scope.yearsBetween = $scope.bilbo.retireInYrs - $scope.bilbo.buyCabinInYrs;
+
+			$scope.fvOf11at30 = $scope.fvFormula($scope.amountAfterCabin, $scope.bilbo.firstEAR, $scope.yearsBetween)
+
+			$scope.amountNeededAtYear30 = $scope.amountAtTime30 - $scope.fvOf11at30;
+
+			$scope.finalAnswer = $scope.finalFunction ($scope.amountNeededAtYear30, $scope.effectivePeriodicRate1, $scope.yearsBetween);
+
+			$scope.finalAnswer = Math.round($scope.finalAnswer);
+
+ 	 	};
+
+ 	 	// FUNCTION BELOW DRAWS THE TIMELINE BASED ON USER INPUTS
+ 	 	$scope.draw = function (){
+
+			var canvas = document.getElementById("bilboTimeline");
+			
+			var ctx = canvas.getContext("2d");
+			
+
+			ctx.fillStyle = "rgba(0, 0, 200, 0.9)";
+	    	ctx.strokeRect (0, 0, 300, 120);
+
+	    	ctx.beginPath();
+		    	
+	    		//draw main timeline
+		    	ctx.moveTo(10,60);
+		    	ctx.lineTo(290,60);
+
+		    	//draw time zero line
+		    	ctx.moveTo(10,80);
+		    	ctx.lineTo(10,40);
+
+		    	//draw end-of-line arrow
+		    	ctx.moveTo(290,60);
+		    	ctx.lineTo(285,55);
+		    	ctx.moveTo(290,60);
+		    	ctx.lineTo(285,65);
+
+
+		    	//draw buyCabinInYrs line
+		    	var firstLine = ( ($scope.bilbo.buyCabinInYrs / ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs) ) * 100) * 2.8 ;
+
+		    	ctx.moveTo(firstLine,70);
+		    	ctx.lineTo(firstLine,50);
+
+		    	//draw retireInYrs line
+		    	var retireLine = (($scope.bilbo.retireInYrs / ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs) ) * 100) * 2.8 ;
+		    	ctx.moveTo(retireLine,70);
+		    	ctx.lineTo(retireLine,50);
+
+		    	//draw inheretance line
+		    	var inheretanceLine = 280;
+		    	ctx.moveTo(inheretanceLine,70);
+		    	ctx.lineTo(inheretanceLine,50);
+		    	
+		    	
+		    	ctx.stroke();
+
+		    	ctx.font = "10px serif";
+		    	ctx.fillText("Yr 0", 5, 30);
+		    	
+		    	ctx.fillText("Purchase Cabin", firstLine - 25, 20);
+		    	ctx.fillText("Yr " + $scope.bilbo.buyCabinInYrs, firstLine - 10, 30);
+
+		    	ctx.fillText("Begin Retirement", retireLine - 30, 20);
+		    	ctx.fillText("Yr " + $scope.bilbo.retireInYrs, retireLine - 10, 30);
+
+		    	ctx.fillText("Inheretance", inheretanceLine - 30, 20);
+		    	ctx.fillText("Yr " + ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs), inheretanceLine - 10, 30);
+
+		    	// draw our Effective Annual Rates
+		    	ctx.fillText($scope.bilbo.firstEAR + "%", firstLine / 2 - 5, 55);
+		    	ctx.fillText($scope.bilbo.firstEAR + "%", (retireLine - firstLine) / 2 + firstLine - 5, 55);
+		    	ctx.fillText($scope.bilbo.secondEAR + "%", (inheretanceLine - retireLine) / 2 + retireLine - 5, 55);
+
+		    	//draw inputs below timeline
+		    	ctx.fillText("+$" + $scope.bilbo.savePerMonth1 + "/mo", firstLine / 2 - 15, 95);
+		    	ctx.fillText("+$????/mo", (retireLine - firstLine) / 2 + firstLine - 10, 95);
+		    	ctx.fillText("-$" + $scope.bilbo.retireIncome + "/mo", (inheretanceLine - retireLine) / 2 + retireLine - 25, 95);
+		    	ctx.fillText("-$" + $scope.bilbo.inheretance, inheretanceLine - 25, 95);
+
+	    	ctx.closePath();
+	    // END OF FIRST TIMELINE DRAWING
+		};
+
+		// DRAWING SECOND TIMELINE
+		$scope.draw2 = function (){
+
+			var canvas = document.getElementById("bilboTimeline2");
+			
+			var ctx = canvas.getContext("2d");
+			
+
+			ctx.fillStyle = "rgba(0, 0, 200, 0.9)";
+	    	ctx.strokeRect (0, 0, 300, 120);
+
+	    	ctx.beginPath();
+		    	
+	    		//draw main timeline
+		    	ctx.moveTo(10,60);
+		    	ctx.lineTo(290,60);
+
+		    	//draw time zero line
+		    	ctx.moveTo(10,80);
+		    	ctx.lineTo(10,40);
+
+		    	//draw end-of-line arrow
+		    	ctx.moveTo(290,60);
+		    	ctx.lineTo(285,55);
+		    	ctx.moveTo(290,60);
+		    	ctx.lineTo(285,65);
+
+
+		    	//draw buyCabinInYrs line
+		    	var firstLine = ( ($scope.bilbo.buyCabinInYrs / ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs) ) * 100) * 2.8 ;
+
+		    	ctx.moveTo(firstLine,70);
+		    	ctx.lineTo(firstLine,50);
+
+		    	//draw retireInYrs line
+		    	var retireLine = (($scope.bilbo.retireInYrs / ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs) ) * 100) * 2.8 ;
+		    	ctx.moveTo(retireLine,70);
+		    	ctx.lineTo(retireLine,50);
+
+		    	//draw inheretance line
+		    	var inheretanceLine = 280;
+		    	ctx.moveTo(inheretanceLine,70);
+		    	ctx.lineTo(inheretanceLine,50);
+		    	
+		    	
+		    	ctx.stroke();
+
+		    	ctx.font = "10px serif";
+		    	ctx.fillText("Yr 0", 5, 30);
+		    	
+		    	ctx.fillText("Purchase Cabin", firstLine - 25, 20);
+		    	ctx.fillText("Yr " + $scope.bilbo.buyCabinInYrs, firstLine - 10, 30);
+
+		    	ctx.fillText("Begin Retirement", retireLine - 30, 20);
+		    	ctx.fillText("Yr " + $scope.bilbo.retireInYrs, retireLine - 10, 30);
+
+		    	ctx.fillText("Inheretance", inheretanceLine - 30, 20);
+		    	ctx.fillText("Yr " + ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs), inheretanceLine - 10, 30);
+
+		    	
+
+		    	//draw inputs below timeline
+		    	ctx.fillText("Amount after Cabin", firstLine - 30, 90);
+		    	ctx.fillText("+$" + Math.round($scope.amountAfterCabin, 2), firstLine - 20, 100);
+		    	
+		    	ctx.fillText("-$" + $scope.bilbo.retireIncome + "/mo", (inheretanceLine - retireLine) / 2 + retireLine - 25, 95);
+		    	ctx.fillText("-$" + $scope.bilbo.inheretance, inheretanceLine - 25, 95);
+
+	    	ctx.closePath();
+	    // END OF SECOND TIMELINE DRAWING
+		};
+
+		// DRAWING THIRD TIMELINE
+		$scope.draw3 = function (){
+
+			var canvas = document.getElementById("bilboTimeline3");
+			
+			var ctx = canvas.getContext("2d");
+			
+
+			ctx.fillStyle = "rgba(0, 0, 200, 0.9)";
+	    	ctx.strokeRect (0, 0, 300, 120);
+
+	    	ctx.beginPath();
+		    	
+	    		//draw main timeline
+		    	ctx.moveTo(10,60);
+		    	ctx.lineTo(290,60);
+
+		    	//draw time zero line
+		    	ctx.moveTo(10,80);
+		    	ctx.lineTo(10,40);
+
+		    	//draw end-of-line arrow
+		    	ctx.moveTo(290,60);
+		    	ctx.lineTo(285,55);
+		    	ctx.moveTo(290,60);
+		    	ctx.lineTo(285,65);
+
+
+		    	//draw buyCabinInYrs line
+		    	var firstLine = ( ($scope.bilbo.buyCabinInYrs / ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs) ) * 100) * 2.8 ;
+
+		    	ctx.moveTo(firstLine,70);
+		    	ctx.lineTo(firstLine,50);
+
+		    	//draw retireInYrs line
+		    	var retireLine = (($scope.bilbo.retireInYrs / ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs) ) * 100) * 2.8 ;
+		    	ctx.moveTo(retireLine,70);
+		    	ctx.lineTo(retireLine,50);
+
+		    	//draw inheretance line
+		    	var inheretanceLine = 280;
+		    	ctx.moveTo(inheretanceLine,70);
+		    	ctx.lineTo(inheretanceLine,50);
+		    	
+		    	
+		    	ctx.stroke();
+
+		    	ctx.font = "10px serif";
+		    	ctx.fillText("Yr 0", 5, 30);
+		    	
+		    	ctx.fillText("Purchase Cabin", firstLine - 25, 20);
+		    	ctx.fillText("Yr " + $scope.bilbo.buyCabinInYrs, firstLine - 10, 30);
+
+		    	ctx.fillText("Begin Retirement", retireLine - 30, 20);
+		    	ctx.fillText("Yr " + $scope.bilbo.retireInYrs, retireLine - 10, 30);
+
+		    	ctx.fillText("Inheretance", inheretanceLine - 30, 20);
+		    	ctx.fillText("Yr " + ($scope.bilbo.retireInYrs + $scope.bilbo.retireIncomeYrs), inheretanceLine - 10, 30);
+
+		    	
+
+		    	//draw inputs below timeline
+		    	ctx.fillText("Amount after Cabin", firstLine - 30, 90);
+		    	ctx.fillText("+$" + Math.round($scope.amountAfterCabin, 2), firstLine - 20, 100);
+		    	
+		    	ctx.fillText("Amount Needed at Year " + $scope.bilbo.retireInYrs, retireLine - 35, 90);
+		    	ctx.fillText("-$" + Math.round($scope.amountAtTime30, 0), retireLine - 25, 100);
+
+	    	ctx.closePath();
+	    // END OF THIRD TIMELINE DRAWING
+		};
+
+ 	 }]);
+}());
+
+</script>
+<!DOCTYPE html>
+<html ng-app="zeApp">
+	<!--
+	****************************************************
+	****           Built by Shan Newton             ****
+	****              shannewton.com                ****
+	****               Created using 				****
+	****      Twitter Bootstrap and Angular.js      ****
+	****************************************************
+	-->
+  <head>
+    <title>Bilbo Baggins Finance Problem</title>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <!-- css -->
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="css/style.css" rel="stylesheet" media="screen">
+	<script src="js/modernizr.custom.js"></script>
+
+	<style>
+		.currencyBox {
+			width:83px;
+		}
+		.alertBox {
+			border:solid 1px #777; 
+			border-radius:10px; 
+			padding:20px;
+		}
+
+	</style>
+
+  </head>
+  <body ng-controller="ZeController as zeCtrl " > 
+		
+		<div name="bagginsExample" class="panel panel-primary">
+
+			<div class="panel panel-heading">
+				<h3 style="color:white">The Bilbo Baggins Finance Problem</h3>
+				<h5><i>~One Finance Problem To Rule Them All~</i></h5>
+
+			</div>
+			<div class="panel panel-body">
+				<!-- Problem description with dynamic inputs -->
+				<div class="pull-right" style="margin:10px;">
+					<!-- image by Remainaery-->
+					<img class="img-rounded" src="./bilbo.jpg" />
+				</div>
+				<div class="alert alert-success alertBox">
+					<h5>
+						Bilbo Baggins wants save money to meet three objectives. 
+					</h5>
+					<p>
+						<b>First</b>, he would like to be able to retire <b>{{bilbo.retireInYrs}}</b> years from now, with a retirement income of <b>${{bilbo.retireIncome}}</b> per month for <b>{{bilbo.retireIncomeYrs}}</b> years, with the first payment received {{bilbo.retireInYrs}} years and 1 month from now.
+					</p>
+					<p>
+						<b>Second</b>, he would like to purchase a cabin in Rivendell in <b>{{bilbo.buyCabinInYrs}}</b> years at an estimated cost of <b>${{bilbo.cabin}}</b>.
+					</p>
+					<p>
+						<b>Third</b>, after he passes on at the end of {{bilbo.retireIncomeYrs}} years of withdrawals, he would like to leave an inheretance of <b>${{bilbo.inheretance}}</b> to his nephew Frodo. He can afford to save <b>${{bilbo.savePerMonth1}}</b> per month for the next {{bilbo.buyCabinInYrs}} years. 
+					</p>
+					<p>
+						If he can earn a <b>{{bilbo.firstEAR}}%</b> EAR before he retires and a <b>{{bilbo.secondEAR}}%</b> EAR after he retires, how much will he have to save each month in Years {{bilbo.buyCabinInYrs + 1}} through {{bilbo.retireInYrs}}?
+					</p>
+			</div>
+			
+
+
+			<!--INPUTS-->		
+			<div class="alert alert-info alertBox">
+				<h3>Inputs</h3>
+
+					<table class="table table-hover table-condensed">
+						<tr>
+							<td><label for="retireIncome">Retirement Income (monthly): </label></td>
+							<td>$<input type="number" id="retireIncome" value="{{bilbo.retireIncome}}" class="currencyBox" ng-model="bilbo.retireIncome" ng-change="solver();" /></td>
+						<tr/>
+						<tr>
+							<td><label for="retireIncomeYrs">Retirement Income for (years): </label></td>
+							<td>&nbsp;&nbsp;<input type="number" id="retireIncomeYrs" value="{{bilbo.retireIncomeYrs}}" style="width:55px;" ng-model="bilbo.retireIncomeYrs" ng-change="solver();" />yrs</td>
+						<tr/>
+						<tr>
+							<td><label for="retireInYrs">Retire In (years): </label></td>
+							<td>&nbsp;&nbsp;<input type="number" id="retireInYrs" value="{{bilbo.retireInYrs}}" style="width:55px;" ng-model="bilbo.retireInYrs" ng-change="solver();" />yrs</td>
+						<tr/>
+
+						<tr>
+							<td><label for="buyCabinInYrs">Buy Cabin In (years): </label></td>
+							<td>&nbsp;&nbsp;<input type="number" id="buyCabinInYrs" value="{{bilbo.buyCabinInYrs}}" style="width:55px" ng-model="bilbo.buyCabinInYrs" ng-change="solver();" />yrs</td>
+						<tr/>
+						<tr>
+							<td><label for="cabin">Cost of Rivendell Cabin: </label></td>
+							<td>$<input type="number" id="cabin" value="{{bilbo.cabin}}" class="currencyBox" ng-model="bilbo.cabin" ng-change="solver();" /></td>
+						<tr/>
+
+						<tr>
+							<td><label for="inheretance">Amount left for Frodo's Inheretance: </label>
+							</td>
+							<td>$<input type="number" id="inheretance" value="{{bilbo.inheretance}}" class="currencyBox" ng-model="bilbo.inheretance" ng-change="solver();" />
+							</td>
+						</tr>
+						<tr>
+							<td><label for="savePerMonth1">Savings Per Month in Years 0 - {{bilbo.buyCabinInYrs}}: </label>
+							</td>
+							<td>$<input type="number" id="savePerMonth1" value="{{bilbo.savePerMonth1}}" class="currencyBox" ng-model="bilbo.savePerMonth1" ng-change="solver();" />
+							</td>
+						</tr>
+						<tr>
+							<td><label for="firstEAR">Pre-retirement EAR</label>
+							</td>
+							<td>&nbsp;&nbsp;<input type="number" id="firstEAR" value="{{bilbo.firstEAR}}" style="width:40px;" ng-model="bilbo.firstEAR" ng-change="solver();" />%
+							</td>
+						</tr>
+						<tr>
+							<td><label for="secondEAR">Post-retirement EAR</label>
+							</td>
+							<td>&nbsp;&nbsp;<input type="number" id="secondEAR" value="{{bilbo.secondEAR}}" style="width:40px;" ng-model="bilbo.secondEAR" ng-change="solver();" />%
+							</td>
+						</tr>
+						<tr>
+							<td><label for=""></label>
+							</td>
+							<td>
+							</td>
+						</tr>
+
+
+					</table>
+				</div>
+				
+
+
+
+				<!--show solution-->
+				<div class="alert alert-info" id="outputs" style="border:solid 1px #777; border-radius:10px; padding:30px;">
+					<h3>Outputs</h3>
+
+						<h4>Final Answer: ${{ finalAnswer }} per month</h4>
+						
+						Effective Periodic Rate (1): {{ effectivePeriodicRate1 }}
+						<br/>
+						Effective Periodic Rate (2): {{ effectivePeriodicRate2 }}
+						<br/>
+						Future Value Annuity: {{ futureValueAnn }}
+						<br />
+						Amount after purchasing cabin: {{ amountAfterCabin }}
+						<br />
+						Present Value Annuity: {{ presentValueAnn }}
+						<br />
+						Amount needed at {{bilbo.retireIncomeYrs + bilbo.retireInYrs}} to leave inheretance of {{bilbo.inheretance}} : {{ pvInheretance }}
+						<br />
+						Thus, Bilbo needs to have this much at year {{bilbo.retireInYrs}}: {{ amountAtTime30 }}
+						<br />
+						The FV<sub>{{bilbo.RetireInYrs}}</sub> of the amount remaining after buying the cabin: {{ fvOf11at30 }}
+						<br />
+						<br />
+					
+
+				</div>
+				<div class="alert alert-info" id="outputs" style="border:solid 1px #777; border-radius:10px; padding:30px;">
+
+
+					<h3>Walkthrough</h3>
+					<!-- STEP ONE -->
+					<h4>Step One: Draw a timeline</h4>
+
+						<button class="btn btn-primary" ng-show="tlVis == true" ng-click="draw(); tlVis=false;" >Draw Timeline</button>
+
+						<br/>
+
+						<!-- my attempt at drawing timeline based on user inputs using the canvas element -->
+						<canvas id="bilboTimeline" width="300" height="120">
+							<!-- fallback content inside canvas -->
+
+						</canvas>
+					
+
+
+
+
+
+
+					<!-- STEP TWO -->
+					<br/>
+					<br />
+					<h4>
+						Step Two: Calculate the monthly rate using the Effective Annual Rate (EAR) provided. 
+					</h4>
+					<p>
+						Our cashflows/savings are monthly, so we need to compound them monthly, which we can't do with an annual rate. We need the periodic rate in monthly terms.
+					</p>
+					<center>
+					<p class="alert alert-warning">
+						<big><u>CONVERTING EAR TO EPR</u></big>
+						<br/>
+						<br/>
+						EAR = (1 + periodic rate)<sup>m</sup> -1  
+						<br>
+						<small><i>where m = # of compounding periods in one year 
+						<br/>
+						and periodic rate = (standard interest rate / m)</i></small>
+						<br/> 
+						<br/>
+						THEREFORE, the effective rate for a period is:
+						<br/>
+						<br/>
+						<b style="border:solid 1px black; border-radius:10px; padding:10px;">EPR = [ (1 + annual rate)^<sup>(1/#ofPeriodsPerYear)</sup> ] -1</b>
+						<br/>&nbsp;
+					</p>
+					</center>
+					<p>
+						We plug in the first EAR and get:
+						<br/> (1 + <b>{{ bilbo.firstEAR /100 | number:2}}</b>)<sup>(1/12)</sup> -1
+						<br/>
+						= ({{1 + (bilbo.firstEAR/100) | number:2}})<sup>{{1/12 | number:4}}</sup> - 1 
+						<br/>= <b>{{effectivePeriodicRate1}}</b>
+						<br/>or {{effectivePeriodicRate1 * 100 | number:4}}% per month
+
+					</p>
+					<br/>
+					<p>
+						While we're at it, let's go ahead and do the second EAR:
+						<br/> (1 + <b>{{ bilbo.secondEAR /100}}</b>)<sup>(1/12)</sup> -1
+						<br/>
+						= ({{1 + (bilbo.secondEAR/100)}})<sup>{{1/12 | number:4}}</sup> - 1 
+						<br/>= <b>{{effectivePeriodicRate2}}</b>
+						<br/>or {{effectivePeriodicRate2 * 100 | number:4}}% per month
+
+					</p>
+					<br/>
+					<div class="alert alert-danger fade in">
+						<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+						*Note: In all my calculations, I do not round.  I let the computer derive the most accurate answer possible.  If you are attempting to arrive at an answer based on a textbook problem or for a university class, you may need to round your calculations, oftentimes to four decimal places. I will use various lengths of decimal places in the walkthrough, but the <a href="#outputs">Outputs</a> section counts the unfiltered raw outputs.
+					</div>
+
+
+
+
+
+					<!-- STEP THREE -->
+					<br/>
+					<br/>
+					<h4>Step Three: Calculate the Future Value of Annuity of years 0 - {{bilbo.buyCabinInYrs}}</h4>
+					<p>
+						Now we need the Future Value of Bilbo's savings cashflow (i.e., Annuity) from years 0 - {{bilbo.buyCabinInYrs}}, to determine how much his savings are worth in Year {{bilbo.buyCabinInYrs}} if he can save $<b>{{bilbo.savePerMonth1}}</b> per month.
+						<br/>
+					</p>
+					<p class="alert alert-warning">
+						<big><u>FUTURE VALUE OF ANNUITY</u></big>
+						<br/>
+						<br/>
+						<b>FV<sub>Ann</sub> = C * [ ( (1+i)<sup>n</sup> -1 )/ i ]</b>
+						<br/>
+						<small><i>
+						<br/>
+						where 
+						<br/>
+						C = cashflow 
+						<br/>
+						 i = the periodic rate
+						<br>
+						 n = number of periods
+						</i></small>
+					</p>
+					<p>
+						Plug in the values and solve, using the appropriate periodic rate. 
+						<br/>
+						FV<sub>Ann<sub>{{bilbo.buyCabinInYrs}}</sub></sub> = ${{bilbo.savePerMonth1}} * [ ( ({{1 + effectivePeriodicRate1 | number:6}})<sup>{{12 * bilbo.buyCabinInYrs}}</sup> -1) / {{effectivePeriodicRate1 | number:6}} ]
+						<br/>
+						FV<sub>Ann<sub>{{bilbo.buyCabinInYrs}}</sub></sub> = {{bilbo.savePerMonth1}} * [ ({{ Math.pow((1 + effectivePeriodicRate1), (12 * bilbo.buyCabinInYrs)) | number:4}} - 1) / {{effectivePeriodicRate1 | number:6}} ]
+						<br/>
+						FV<sub>Ann<sub>{{bilbo.buyCabinInYrs}}</sub></sub> = {{bilbo.savePerMonth1}} * [ {{ ((Math.pow((1 + effectivePeriodicRate1), (12 * bilbo.buyCabinInYrs)) )-1 ) / effectivePeriodicRate1 | number:4}} ]
+						<br />
+						<b>FV<sub>Ann<sub>{{bilbo.buyCabinInYrs}}</sub></sub> = {{bilbo.savePerMonth1 * ( ( (Math.pow((1 + effectivePeriodicRate1), (12 * bilbo.buyCabinInYrs))) - 1) / effectivePeriodicRate1 ) | number:2}} </b>
+
+					</p>
+
+
+
+
+
+
+					<!-- STEP FOUR -->
+					<br/>
+					<br/>
+					<h4>Step Four: Buy the cabin in Rivendell</h4>
+					<p>
+						We know how much Bilbo will have at year {{bilbo.buyCabinInYrs}} (which is ${{bilbo.savePerMonth1 * ( ( (Math.pow((1 + effectivePeriodicRate1), (12 * bilbo.buyCabinInYrs))) - 1) / effectivePeriodicRate1 ) | number:2}}), and we know that the cabin in Rivendell will cost ${{bilbo.cabin}}, so we use subtraction to determine how much money Bilbo has left at year {{bilbo.buyCabinInYrs}} after buying the cabin.
+						<br/>
+						${{bilbo.savePerMonth1 * ( ( (Math.pow((1 + effectivePeriodicRate1), (12 * bilbo.buyCabinInYrs))) - 1) / effectivePeriodicRate1 ) | number:4}} - ${{bilbo.cabin}}
+						<br/>
+						<b>= ${{(bilbo.savePerMonth1 * ( ( (Math.pow((1 + effectivePeriodicRate1), (12 * bilbo.buyCabinInYrs))) - 1) / effectivePeriodicRate1 )) - bilbo.cabin | number:2}}</b>
+					</p>
+					<p>
+						Let's update our timeline and move on to some other calculations.
+						<br/>
+						<button class="btn btn-primary" ng-show="tlVis2 == true" ng-click="draw2(); tlVis2=false;" >Draw Timeline</button>
+						<br/>
+						<canvas id="bilboTimeline2" width="300" height="120">
+							<!-- fallback content inside canvas -->
+
+						</canvas>
+					</p>
+
+
+
+
+
+					<!-- STEP FIVE -->
+					<br/>
+					<br/>
+					<h4>Step Five: Move to the end of the timeline and calculate the Present Value of Bilbo's retirement income at year {{bilbo.retireInYrs}}</h4>
+					<p class="alert alert-warning">
+						<big><u>PRESENT VALUE OF ANNUITY</u></big>
+						<br/>
+						<br/>
+						<b>PV<sub>Ann</sub> = C * [ ( 1 - (1+i)<sup>-n</sup> ) / i  ]</b>
+						<br/>
+						<small><i>
+						<br/>
+						where 
+						<br/>
+						C = cashflow 
+						<br/>
+						 i = the periodic rate
+						<br>
+						 n = number of periods
+						</i></small>
+					</p>
+					<p>
+						Plug in the values and solve. Don't forget to use the second EPR that we converted earlier.
+						<br/>
+						PV<sub>Ann<sub>{{bilbo.retireInYrs}}</sub></sub> = {{bilbo.retireIncome}} * [ ( 1 - (1+{{effectivePeriodicRate2 | number:6}})<sup>-{{12* bilbo.retireIncomeYrs}}</sup> ) / {{effectivePeriodicRate2 | number:6}}  ]
+						<br/>
+						PV<sub>Ann<sub>{{bilbo.retireInYrs}}</sub></sub> = {{bilbo.retireIncome}} * [ ( 1 - {{Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) | number:4}}  ) / {{effectivePeriodicRate2 | number:6}}  ]
+						<br/>
+						PV<sub>Ann<sub>{{bilbo.retireInYrs}}</sub></sub> = {{bilbo.retireIncome}} * [ {{1 - Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) | number:4}} / {{effectivePeriodicRate2 | number:6}}  ]
+						<br/>
+						PV<sub>Ann<sub>{{bilbo.retireInYrs}}</sub></sub> = {{bilbo.retireIncome}} * [ {{ (1 - Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) ) / effectivePeriodicRate2 | number:4}} ]
+						<br/>
+						<b>PV<sub>Ann<sub>{{bilbo.retireInYrs}}</sub></sub> = {{bilbo.retireIncome * ((1 - Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) ) / effectivePeriodicRate2 )| number:2}}</b>
+					</p>
+
+
+
+
+
+
+					<!-- STEP SIX -->
+					<br/>
+					<br/>
+					<h4>Step Six: Calculate the Present Value of the inheretance Bilbo plans to leave his nephew Frodo</h4>
+					<p class="alert alert-warning">
+						<big><u>PRESENT VALUE</u></big>
+						<br/>
+						<br/>
+						<b>PV = FV / (1 + i)<sup>n</sup></b>
+						<br/>
+						<small><i>
+						<br/>
+						where  
+						<br/>
+						 i = the periodic rate
+						<br>
+						 n = number of periods
+						 <br/>
+						FV = the dollar amount to convert
+						</i></small>
+					</p>
+					<p>
+						Plug in the values and solve. In this case, we can use the original EAR and periods in terms of years.
+						<br/>
+						PV<sub>{{bilbo.retireInYrs}}</sub> = {{bilbo.inheretance}} / (1 + {{bilbo.secondEAR / 100}})<sup>{{bilbo.retireIncomeYrs}}</sup>
+						<br/>
+						PV<sub>{{bilbo.retireInYrs}}</sub> = {{bilbo.inheretance}} / {{ Math.pow( (1 + (bilbo.secondEAR / 100)), bilbo.retireIncomeYrs ) | number:4}}
+						<br/>
+						<b>PV<sub>{{bilbo.retireInYrs}}</sub> = {{ bilbo.inheretance / Math.pow( (1 + (bilbo.secondEAR / 100)), bilbo.retireIncomeYrs ) | number:2}}</b>
+					</p>
+					<br/>
+
+
+
+
+
+					<!-- STEP SEVEN -->
+					<br/>
+					<br/>
+					<h4>Step Seven: Determine how much Bilbo needs at year {{bilbo.retireInYrs}} to acheive his retirement goals</h4>
+					<p>
+						Now that we've done the calculations, we know that Bilbo needs ${{bilbo.inheretance / Math.pow( (1 + (bilbo.secondEAR / 100)), bilbo.retireIncomeYrs ) | number:2}} at year {{bilbo.retireInYrs}} to have the retirement income he desires. Additionally, we know that Bilbo needs ${{ bilbo.retireIncome * ((1 - Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) ) / effectivePeriodicRate2 )| number:2 }} at year {{bilbo.retireInYrs}} if he is going to leave an inheretance of {{bilbo.inheretance}} to Frodo.
+						<br/>
+						<br/>
+						Therefore, we add these together to get the total amount needed at year {{bilbo.retireInYrs}} to acheive his retirement goals.
+						<br/>
+						<br/>
+						Amount Needed at Year<sub>{{bilbo.retireInYrs}}</sub> = ${{bilbo.inheretance / Math.pow( (1 + (bilbo.secondEAR / 100)), bilbo.retireIncomeYrs ) | number:2}} + ${{ bilbo.retireIncome * ((1 - Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) ) / effectivePeriodicRate2 )| number:2 }}
+						<br/>
+						<b>Amount Needed at Year<sub>{{bilbo.retireInYrs}}</sub> = ${{ (bilbo.inheretance / Math.pow( (1 + (bilbo.secondEAR / 100)), bilbo.retireIncomeYrs ) ) + ( bilbo.retireIncome * ((1 - Math.pow( (1 + effectivePeriodicRate2), -(12 * bilbo.retireIncomeYrs)) ) / effectivePeriodicRate2 ) ) | number:2 }}</b>
+					</p>
+					<br/>
+					<br/>
+					<p>
+						Let's go ahead and update our timeline.						
+					</p>
+					<button class="btn btn-primary" ng-show="tlVis3 == true" ng-click="draw3(); tlVis3=false;" >Draw Timeline</button>
+						<br/>
+						<canvas id="bilboTimeline3" width="300" height="120">
+							<!-- fallback content inside canvas -->
+
+						</canvas>
+
+
+
+
+
+					<!-- STEP EIGHT -->
+					<br/>
+					<br/>
+					<h4>Step Eight: Find the Future Value at year {{bilbo.retireInYrs}} of the amount Bilbo has at year {{bilbo.buyCabinInYrs}} after buying the cabin</h4>
+					<p>
+						We want to compare how much Bilbo will have at year {{bilbo.retireInYrs}} with how much he needs at year {{bilbo.retireInYrs}}, so we know how short he is on cash which will allow us to derive how much he needs to save per month in years {{bilbo.buyCabinInYrs + 1}} - {{bilbo.retireInYrs}}.
+					</p>
+					<p class="alert alert-warning">
+						<big><u>FUTURE VALUE</u></big>
+						<br/>
+						<br/>
+						<b>FV = PV * (1 + i)<sup>n</sup></b>
+						<br/>
+						<small><i>
+						<br/>
+						where  
+						<br/>
+						 i = the periodic rate
+						<br>
+						 n = number of periods
+						 <br/>
+						PV = the dollar amount to convert
+						</i></small>
+					</p>
+					<p>
+						Plug in the values and solve. Here we can use the original EAR and periods in terms of years.
+						<br/>
+						FV<sub>{{bilbo.retireInYrs}}</sub> = {{amountAfterCabin | number:2}} * (1 + {{bilbo.firstEAR / 100}})<sup>{{bilbo.retireInYrs - bilbo.buyCabinInYrs}}</sup>
+						<br/>
+						FV<sub>{{bilbo.retireInYrs}}</sub> = {{amountAfterCabin | number:2}} * {{ Math.pow(  (1 + (bilbo.firstEAR / 100)), yearsBetween ) | number:2 }}
+						<br/>
+						<b>FV<sub>{{bilbo.retireInYrs}}</sub> = ${{amountAfterCabin * ( Math.pow(  (1 + (bilbo.firstEAR / 100)), yearsBetween ) ) | number:2 }}</b>
+					</p>
+
+					<!-- STEP NINE -->
+					<br/>
+					<br/>
+					<h4>Step Nine: Compare the values at year {{bilbo.retireInYrs}} and then solve the final problem!</h4>
+					<p>
+						We know Bilbo needs ${{amountAtTime30 | number:2}} at year {{bilbo.retireInYrs}}, and based on his savings after buying the cabin, he will have ${{fvOf11at30 | number:2}} at that time. Thus he still needs:
+						<br/>
+						<br/>
+						${{amountAtTime30 | number:2}} - ${{fvOf11at30 | number:2}} =
+						<br/>
+						<b>${{amountAtTime30 - fvOf11at30 | number:2}}
+						<br/>at year {{bilbo.retireInYrs}} to acheive his goals.</b>
+						<br/>
+						<br/>
+					</p>
+					<p>
+						Now that we know this much, we can determine how much Bilbo needs to save per month in years {{bilbo.buyCabinInYrs + 1}} - {{bilbo.retireInYrs}} in order to have the additional ${{amountAtTime30 - fvOf11at30 | number:2}} in savings.
+					</p>
+					<p class="alert alert-warning">
+						<big><u>SOLVING FOR CASHFLOW</u></big>
+						<br/>
+						<br/>
+						<b>C = FV / [ ((1 + i)<sup>n</sup> -1) / i ]</b>
+						<br/>
+						<small><i>
+						<br/>
+						where  
+						<br/>
+						 i = the periodic rate
+						<br>
+						 n = number of periods
+						 <br/>
+						FV = the future value amount
+						</i></small>
+					</p>
+					<p>
+						Plug in the values and solve. Here we need to use the monthly periodic rate.
+						<br/>
+						C<sub>{{bilbo.buyCabinInYrs + 1}}-{{bilbo.retireInYrs}}</sub> = {{amountNeededAtYear30 | number:2}} / [((1 + {{effectivePeriodicRate1 | number:6}})<sup>{{ (bilbo.retireInYrs - bilbo.buyCabinInYrs) * 12}}</sup> -1 ) / {{effectivePeriodicRate1 | number:6}}]
+						<br/>
+						C<sub>{{bilbo.buyCabinInYrs + 1}}-{{bilbo.retireInYrs}}</sub> = {{amountNeededAtYear30 | number:2}} / [ (( 
+
+						{{ Math.pow( (1 + effectivePeriodicRate1 ), ( (bilbo.retireInYrs - bilbo.buyCabinInYrs) * 12) ) | number:4}}
+
+						) -1 ) / {{effectivePeriodicRate1 | number:6}}]
+						<br/>
+						C<sub>{{bilbo.buyCabinInYrs + 1}}-{{bilbo.retireInYrs}}</sub> = {{amountNeededAtYear30 | number:2}} / [
+
+						{{ ( Math.pow( (1 + effectivePeriodicRate1 ), ( (bilbo.retireInYrs - bilbo.buyCabinInYrs) * 12) ) -1 ) / effectivePeriodicRate1 | number:4 }} ]
+						<br/>
+						<b>C<sub>{{bilbo.buyCabinInYrs + 1}}-{{bilbo.retireInYrs}}</sub> = {{ amountNeededAtYear30  / ( ( Math.pow( (1 + effectivePeriodicRate1 ), ( (bilbo.retireInYrs - bilbo.buyCabinInYrs) * 12) ) -1 ) / effectivePeriodicRate1 ) | number:2 }} per month</b>
+
+					</p>
+					<br/>
+					<p>
+						Congratulations! You've solved the legendary Bilbo Baggins finance problem.  In order to acheive his retirement goals, Bilbo needs to save ${{finalAnswer}} per month in years {{bilbo.buyCabinInYrs +1}}-{{bilbo.retireInYrs}}.
+					</p>
+
+
+
+
+				</div>
+
+
+
+
+			<!-- closes panel body-->
+			</div>
+		<!-- closes bilbo panel-->
+		</div>
+	 
+	 <!-- js -->
+    <script src="js/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    </body>
+</html>
